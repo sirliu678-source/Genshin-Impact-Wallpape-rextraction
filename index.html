@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 清除 Referrer 绕过防盗链 -->
+  <meta name="referrer" content="no-referrer" />
+  <title>VisuMark - 动图与视觉网址管理库 (支持撤销容错版)</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.15; transform: scale(1); }
+      50% { opacity: 0.25; transform: scale(1.08); }
+    }
+    .animate-ambient { animation: pulseGlow 10s ease-in-out infinite alternate; }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white antialiased font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    const INITIAL_RESOURCES = [
+      {
+        id: 'res-1',
+        title: '薇斯纳',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/09/14/d9720c4e6c087c30e910f7122bc934a0_2356469432669950473.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: true,
+        createdAt: '2026-09-14'
+      },
+      {
+        id: 'res-2',
+        title: '沃雅妮莎',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/09/02/af043b4c660f9c590032512bf174decb_4201956066732409441.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-09-02'
+      },
+      {
+        id: 'res-3',
+        title: '莉奈娅',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/03/25/bb1ea1f52fca5b5a7e9328436186bd85_6551268063963729945.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-03-25'
+      },
+      {
+        id: 'res-4',
+        title: '兹白',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/01/12/19b952e45585cff3411caa03e352aff2_2010327998427949514.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-01-12'
+      },
+      {
+        id: 'res-5',
+        title: '哥伦比娅',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/01/08/f3c44cd72c6214ed680afe5fe90b26fc_6413191254498564796.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: true,
+        createdAt: '2026-01-08'
+      },
+      {
+        id: 'res-6',
+        title: '桑多涅',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/06/16/b4ba8db543709ff824034a2f2e97f785_1702709181354433693.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-06-16'
+      },
+      {
+        id: 'res-7',
+        title: '奥黛塔',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/08/05/8e1c78aaa6e33ed60b88e12a461f8ee5_6759941859929004894.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-08-05'
+      },
+      {
+        id: 'res-8',
+        title: '火花爻光',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/02/06/eaad215c5049a76971e572ff60579923_5551804012227685531.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: false,
+        createdAt: '2026-02-06'
+      },
+      {
+        id: 'res-9',
+        title: '知更鸟sp',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/08/19/e03cdbee1cd9f23890a912539cdbd24b_8411913511023477738.webm',
+        previewUrl: '',
+        description: '动态视觉壁纸背景',
+        category: '动态壁纸',
+        type: 'WEBM',
+        isPinned: true,
+        createdAt: '2026-08-19'
+      },
+      {
+        id: 'res-10',
+        title: '绯英',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/04/15/69a2b08b81dc855f3519d54bfcf70dfd_3818893167461498559.webp',
+        previewUrl: '',
+        description: '高清静态角色插画',
+        category: '立绘插画',
+        type: 'IMG',
+        isPinned: false,
+        createdAt: '2026-04-15'
+      },
+      {
+        id: 'res-11',
+        title: '蕾米',
+        url: 'https://launcher-webstatic.mihoyo.com/launcher-public/2026/07/23/b6a0494d0222066c1b962eccf92d7412_8890229846715017460.webp',
+        previewUrl: '',
+        description: '高清静态角色插画',
+        category: '立绘插画',
+        type: 'IMG',
+        isPinned: false,
+        createdAt: '2026-07-23'
+      }
+    ];
+
+    const STORAGE_KEY = 'visumark_items_v10';
+    const CATS_KEY = 'visumark_cats_v10';
+
+    function detectMediaType(url) {
+      if (!url) return 'IMG';
+      const cleanUrl = url.split('?')[0].toLowerCase();
+      if (cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mp4')) return 'WEBM';
+      if (cleanUrl.endsWith('.gif')) return 'GIF';
+      return 'IMG';
+    }
+
+    function getDomain(url) {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return '直链网站';
+      }
+    }
+
+    // 提取最短合法直链
+    function extractUrlsFromRawText(rawText) {
+      if (!rawText) return [];
+      const regex = /https?:\/\/[a-zA-Z0-9\.\-_~:/?#\[\]@!$&'*+,;=%]+?\.(?:webm|webp|png)/gi;
+      const rawMatches = rawText.match(regex) || [];
+
+      const uniqueMap = new Map();
+      rawMatches.forEach(rawUrl => {
+        let clean = rawUrl.trim();
+        const lastHttpIndex = clean.lastIndexOf('http');
+        if (lastHttpIndex > 0) clean = clean.substring(lastHttpIndex);
+        clean = clean.replace(/[,;)"'>]+$/, '');
+
+        const lower = clean.toLowerCase();
+        let ext = '';
+        if (lower.endsWith('.webm')) ext = 'WEBM';
+        else if (lower.endsWith('.webp')) ext = 'WEBP';
+        else if (lower.endsWith('.png')) ext = 'PNG';
+
+        if (ext && !uniqueMap.has(clean)) {
+          const filename = clean.substring(clean.lastIndexOf('/') + 1);
+          let title = '';
+          let category = '立绘插画';
+          let type = 'IMG';
+
+          if (ext === 'WEBM') {
+            title = `动效_${filename.slice(0, 10)}`;
+            category = '动态壁纸';
+            type = 'WEBM';
+          } else if (ext === 'WEBP') {
+            title = `WebP插画_${filename.slice(0, 10)}`;
+            category = '立绘插画';
+            type = 'IMG';
+          } else {
+            title = `PNG图片_${filename.slice(0, 10)}`;
+            category = '静态美图';
+            type = 'IMG';
+          }
+
+          uniqueMap.set(clean, {
+            id: 'ext-' + Math.random().toString(36).substr(2, 9),
+            url: clean,
+            title: title,
+            category: category,
+            type: type,
+            format: ext,
+            checked: true
+          });
+        }
+      });
+
+      return Array.from(uniqueMap.values());
+    }
+
+    // 媒体预览渲染组件
+    function MediaRenderer({ url, previewUrl, type, title, className = '', autoPlay = true }) {
+      const [stage, setStage] = useState(0);
+      const displayUrl = previewUrl?.trim() || url?.trim();
+      const isVideo = type === 'WEBM' || displayUrl?.split('?')[0].toLowerCase().endsWith('.webm');
+
+      useEffect(() => {
+        setStage(0);
+      }, [displayUrl]);
+
+      if (!displayUrl || stage === 2) {
+        return (
+          <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-2 text-center">
+            <span className="text-2xl">🖼️</span>
+            <span className="text-[10px] text-slate-400 mt-1 line-clamp-1">{title || '无预览'}</span>
+          </div>
+        );
+      }
+
+      if (isVideo) {
+        return (
+          <video
+            src={displayUrl}
+            autoPlay={autoPlay}
+            loop
+            muted
+            playsInline
+            onError={() => setStage(2)}
+            className={`w-full h-full object-cover ${className}`}
+          />
+        );
+      }
+
+      const currentSrc = stage === 0
+        ? displayUrl
+        : `https://images.weserv.nl/?url=${encodeURIComponent(displayUrl)}&default=transparent`;
+
+      return (
+        <img
+          src={currentSrc}
+          alt={title || "preview"}
+          loading="lazy"
+          onError={() => {
+            if (stage === 0) setStage(1);
+            else setStage(2);
+          }}
+          className={`w-full h-full object-cover ${className}`}
+        />
+      );
+    }
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('gallery');
+      const [items, setItems] = useState(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : INITIAL_RESOURCES;
+        } catch {
+          return INITIAL_RESOURCES;
+        }
+      });
+
+      // 【核心功能新增】多级历史撤销栈（容错功能）
+      const [historyStack, setHistoryStack] = useState([]);
+
+      const [categories, setCategories] = useState(() => {
+        try {
+          const saved = localStorage.getItem(CATS_KEY);
+          return saved ? JSON.parse(saved) : ['动态壁纸', '立绘插画', '静态美图', '常用推荐'];
+        } catch {
+          return ['动态壁纸', '立绘插画', '静态美图', '常用推荐'];
+        }
+      });
+
+      const [activeCategory, setActiveCategory] = useState('ALL');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [filterType, setFilterType] = useState('ALL');
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [activePreviewItem, setActivePreviewItem] = useState(null);
+      const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+      const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+      const [copiedId, setCopiedId] = useState(null);
+      const [batchFeedback, setBatchFeedback] = useState('');
+      const [showUndoBtnInToast, setShowUndoBtnInToast] = useState(false);
+
+      // 手动添加表单状态
+      const [formData, setFormData] = useState({
+        title: '',
+        url: '',
+        previewUrl: '',
+        category: '动态壁纸',
+        description: '',
+        type: 'AUTO',
+        isPinned: false
+      });
+
+      // 提取板块状态
+      const [extractedItems, setExtractedItems] = useState([]);
+      const [rawInputText, setRawInputText] = useState('');
+      const [isDragging, setIsDragging] = useState(false);
+      const fileInputRef = useRef(null);
+
+      const [extractFilterFormat, setExtractFilterFormat] = useState('ALL');
+      const [extractSearchQuery, setExtractSearchQuery] = useState('');
+      const [extractCheckFilter, setExtractCheckFilter] = useState('ALL');
+
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        } catch (e) {}
+      }, [items]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem(CATS_KEY, JSON.stringify(categories));
+        } catch (e) {}
+      }, [categories]);
+
+      // 保存快照至历史栈中（最多记录 30 步）
+      const pushHistorySnapshot = (currentItemsState) => {
+        setHistoryStack(prev => {
+          const newStack = [...prev, JSON.parse(JSON.stringify(currentItemsState))];
+          if (newStack.length > 30) newStack.shift();
+          return newStack;
+        });
+      };
+
+      // 执行“返回上一步 / 撤销”容错逻辑
+      const handleUndo = () => {
+        if (historyStack.length === 0) {
+          setBatchFeedback('ℹ️ 当前没有可以撤销的更早历史操作');
+          setShowUndoBtnInToast(false);
+          setTimeout(() => setBatchFeedback(''), 3000);
+          return;
+        }
+
+        const previousState = historyStack[historyStack.length - 1];
+        setHistoryStack(prev => prev.slice(0, prev.length - 1));
+        setItems(previousState);
+
+        setBatchFeedback(`↶ 已成功返回上一步！已恢复 ${previousState.length} 个网址卡片状态。`);
+        setShowUndoBtnInToast(false);
+        setTimeout(() => setBatchFeedback(''), 4500);
+      };
+
+      // 监听全局 Ctrl + Z / Cmd + Z 撤销快捷键
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+            // 如果焦点在输入框/文本域内，优先使用默认的文本撤销
+            if (['input', 'textarea'].includes(document.activeElement?.tagName?.toLowerCase())) {
+              return;
+            }
+            e.preventDefault();
+            handleUndo();
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [historyStack]);
+
+      // 画廊列表过滤
+      const filteredItems = useMemo(() => {
+        return items.filter(item => {
+          const matchCat = activeCategory === 'ALL' || item.category === activeCategory;
+          const matchType = filterType === 'ALL' || item.type === filterType;
+          const matchSearch = searchQuery.trim() === '' || 
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.url.toLowerCase().includes(searchQuery.toLowerCase());
+          return matchCat && matchType && matchSearch;
+        }).sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+      }, [items, activeCategory, filterType, searchQuery]);
+
+      // 提取结果动态筛选
+      const filteredExtractedItems = useMemo(() => {
+        return extractedItems.filter(item => {
+          const matchFormat = extractFilterFormat === 'ALL' || item.format === extractFilterFormat;
+          const matchCheck = extractCheckFilter === 'ALL' 
+            ? true 
+            : extractCheckFilter === 'CHECKED' ? item.checked : !item.checked;
+          const matchSearch = extractSearchQuery.trim() === '' ||
+            item.title.toLowerCase().includes(extractSearchQuery.toLowerCase()) ||
+            item.url.toLowerCase().includes(extractSearchQuery.toLowerCase());
+          return matchFormat && matchCheck && matchSearch;
+        });
+      }, [extractedItems, extractFilterFormat, extractCheckFilter, extractSearchQuery]);
+
+      // 手动添加新网址（带历史快照记录）
+      const handleSaveManualNew = (e) => {
+        e.preventDefault();
+        if (!formData.url.trim()) return;
+
+        pushHistorySnapshot(items); // 记录上一步状态
+
+        const effectiveMediaUrl = formData.previewUrl.trim() || formData.url.trim();
+        const detected = detectMediaType(effectiveMediaUrl);
+        const resolvedType = formData.type === 'AUTO' ? detected : formData.type;
+        const fallbackTitle = getDomain(formData.url);
+
+        const newItem = {
+          id: 'res-' + Date.now(),
+          title: formData.title.trim() || fallbackTitle,
+          url: formData.url.trim(),
+          previewUrl: formData.previewUrl.trim(),
+          description: formData.description.trim() || `手动添加于 ${new Date().toLocaleDateString()}`,
+          category: formData.category,
+          type: resolvedType,
+          isPinned: formData.isPinned,
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+
+        setItems([newItem, ...items]);
+        setIsModalOpen(false);
+        setFormData({
+          title: '',
+          url: '',
+          previewUrl: '',
+          category: categories[0] || '动态壁纸',
+          description: '',
+          type: 'AUTO',
+          isPinned: false
+        });
+        setBatchFeedback(`✅ 成功添加新网址卡片：“${newItem.title}”`);
+        setShowUndoBtnInToast(true);
+        setTimeout(() => setBatchFeedback(''), 5000);
+      };
+
+      // 单个卡片删除（带历史快照记录）
+      const handleDeleteItem = (id, title, e) => {
+        e.stopPropagation();
+        pushHistorySnapshot(items); // 记录上一步状态
+        setItems(items.filter(i => i.id !== id));
+        if (activePreviewItem?.id === id) setActivePreviewItem(null);
+
+        setBatchFeedback(`🗑 已删除卡片：“${title}”`);
+        setShowUndoBtnInToast(true);
+        setTimeout(() => setBatchFeedback(''), 6000);
+      };
+
+      // 重置回预设（带历史快照记录）
+      const handleResetDefault = () => {
+        if (confirm('确认恢复为系统预设的 11 个网址？当前状态可随时点击“撤销”恢复。')) {
+          pushHistorySnapshot(items);
+          setItems(INITIAL_RESOURCES);
+          setSelectedItemIds(new Set());
+          setBatchFeedback('↺ 已恢复默认预设网址！');
+          setShowUndoBtnInToast(true);
+          setTimeout(() => setBatchFeedback(''), 5000);
+        }
+      };
+
+      // 解析提取文本
+      const handleParseText = (text) => {
+        const results = extractUrlsFromRawText(text);
+        setExtractedItems(results);
+        if (results.length > 0) {
+          setBatchFeedback(`🎯 成功解析提取出 ${results.length} 个以 webm / webp / png 结尾的最短网址！`);
+        } else {
+          setBatchFeedback(`⚠️ 未在内容中检测到包含 .webm、.webp 或 .png 的最短有效 http 网址。`);
+        }
+        setShowUndoBtnInToast(false);
+        setTimeout(() => setBatchFeedback(''), 5000);
+      };
+
+      // 本地文件读取
+      const handleFileUpload = (file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target.result;
+          setRawInputText(content.slice(0, 1000) + '... (已读取文件全文)');
+          handleParseText(content);
+        };
+        reader.readAsText(file, 'utf-8');
+      };
+
+      const toggleExtractedCheck = (id) => {
+        setExtractedItems(extractedItems.map(item => 
+          item.id === id ? { ...item, checked: !item.checked } : item
+        ));
+      };
+
+      const toggleFilteredExtracted = (selectAll) => {
+        const currentFilteredIds = new Set(filteredExtractedItems.map(i => i.id));
+        setExtractedItems(extractedItems.map(item => {
+          if (currentFilteredIds.has(item.id)) {
+            return { ...item, checked: selectAll };
+          }
+          return item;
+        }));
+      };
+
+      // 将提取的网址批量并入原网址库（带历史快照记录）
+      const handleImportSelected = () => {
+        const toImport = extractedItems.filter(i => i.checked);
+        if (toImport.length === 0) {
+          alert('请先勾选需要添加到库中的网址！');
+          return;
+        }
+
+        const existingUrlSet = new Set(items.map(i => i.url));
+        const newAdditions = [];
+
+        toImport.forEach(item => {
+          if (!existingUrlSet.has(item.url)) {
+            newAdditions.push({
+              id: 'res-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+              title: item.title,
+              url: item.url,
+              previewUrl: '',
+              category: item.category,
+              type: item.type,
+              isPinned: false,
+              description: '从文档自动提取并导入',
+              createdAt: new Date().toISOString().split('T')[0]
+            });
+            existingUrlSet.add(item.url);
+          }
+        });
+
+        if (newAdditions.length === 0) {
+          alert('所选网址在库中均已存在，无需重复添加！');
+          return;
+        }
+
+        pushHistorySnapshot(items); // 记录导入前状态，支持一键撤销
+        setItems([...newAdditions, ...items]);
+        setActiveTab('gallery');
+        setBatchFeedback(`🎉 成功添加 ${newAdditions.length} 个提取网址！`);
+        setShowUndoBtnInToast(true);
+        setTimeout(() => setBatchFeedback(''), 6000);
+      };
+
+      // 下载资源
+      const handleDownloadAsset = async (item, e) => {
+        if (e) e.stopPropagation();
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.target = '_blank';
+        a.download = `${item.title || '资源'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setBatchFeedback(`已触发 "${item.title}" 下载！`);
+        setShowUndoBtnInToast(false);
+        setTimeout(() => setBatchFeedback(''), 3000);
+      };
+
+      // 备份全部数据
+      const handleExportBackup = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", `VisuMark_备份_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setBatchFeedback("✅ 已将全部网址库保存为本地 JSON 备份文件！");
+        setShowUndoBtnInToast(false);
+        setTimeout(() => setBatchFeedback(''), 4000);
+      };
+
+      // 批量打开
+      const handleBatchOpen = () => {
+        const toOpen = isMultiSelectMode && selectedItemIds.size > 0
+          ? items.filter(i => selectedItemIds.has(i.id))
+          : filteredItems;
+
+        if (toOpen.length === 0) {
+          alert('当前筛选下没有可打开的网址！');
+          return;
+        }
+        toOpen.forEach((item, index) => {
+          setTimeout(() => window.open(item.url, '_blank'), index * 80);
+        });
+      };
+
+      const copyUrl = (item, e) => {
+        if (e) e.stopPropagation();
+        navigator.clipboard.writeText(item.url);
+        setCopiedId(item.id);
+        setTimeout(() => setCopiedId(null), 1800);
+      };
+
+      return (
+        <div className="relative min-h-screen overflow-x-hidden pb-20">
+          {/* 背景光晕装饰 */}
+          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-[128px] animate-ambient"></div>
+            <div className="absolute top-1/3 -right-40 w-[480px] h-[480px] bg-purple-600/15 rounded-full blur-[140px] animate-ambient" style={{ animationDelay: '3s' }}></div>
+            <div className="absolute -bottom-40 left-1/3 w-[500px] h-[500px] bg-cyan-600/15 rounded-full blur-[150px] animate-ambient" style={{ animationDelay: '6s' }}></div>
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            
+            {/* 顶栏 Header */}
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-slate-800/80">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                  <span className="text-2xl">✨</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
+                    VisuMark 动图与视觉网址库
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+                    动态壁纸/图片预览 · 支持文件提取 · 内置多步撤销容错功能 (Ctrl+Z)
+                  </p>
+                </div>
+              </div>
+
+              {/* 顶栏控制工具区 */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                
+                {/* 【核心更新】返回上一步 / 撤销容错按钮 */}
+                <button
+                  onClick={handleUndo}
+                  disabled={historyStack.length === 0}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    historyStack.length > 0
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 active:scale-95 shadow-md shadow-amber-950/20'
+                      : 'bg-slate-900/60 text-slate-600 border border-slate-800 cursor-not-allowed'
+                  }`}
+                  title="撤销上一步操作 (支持快捷键 Ctrl + Z)"
+                >
+                  <span className="text-sm font-bold">↶</span>
+                  <span>返回上一步</span>
+                  {historyStack.length > 0 && (
+                    <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 rounded-full text-[10px] font-bold">
+                      {historyStack.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* 板块切换 */}
+                <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
+                  <button
+                    onClick={() => setActiveTab('gallery')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                      activeTab === 'gallery' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    画廊库 ({items.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('extractor')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      activeTab === 'extractor' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>⚡ 文档提取</span>
+                    {extractedItems.length > 0 && (
+                      <span className="px-1.5 py-0.2 bg-white text-purple-900 rounded-full text-[10px] font-bold">
+                        {extractedItems.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* 手动添加新网址按钮 */}
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-700/30 transition-all flex items-center gap-1.5"
+                >
+                  <span className="text-sm font-bold">+</span>
+                  <span>添加新网址</span>
+                </button>
+
+                {/* 恢复默认按钮 */}
+                <button
+                  onClick={handleResetDefault}
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all"
+                  title="恢复为 11 个预设官方网址"
+                >
+                  ↺ 重置
+                </button>
+
+                {/* 备份按钮 */}
+                <button
+                  onClick={handleExportBackup}
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 transition-all"
+                  title="导出整个网址库为本地 JSON 备份文件"
+                >
+                  💾 备份
+                </button>
+              </div>
+            </header>
+
+            {/* 提示信息栏（附带撤销动作） */}
+            {batchFeedback && (
+              <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span>ℹ️</span>
+                  <span>{batchFeedback}</span>
+                </div>
+                {showUndoBtnInToast && historyStack.length > 0 && (
+                  <button
+                    onClick={handleUndo}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-colors flex items-center gap-1 flex-shrink-0"
+                  >
+                    <span>↶</span>
+                    <span>立即撤销</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ===================== 板块一：独立文档提取版块 ===================== */}
+            {activeTab === 'extractor' && (
+              <div className="my-6 space-y-6">
+                <div className="glass-panel rounded-3xl p-6 border border-purple-500/20">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+                    <div>
+                      <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <span>⚡</span> 提取 WebM / WebP / PNG 最短媒体网址
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-1">
+                        直接上传文档或粘贴乱码文本，自动提取出以 http 开头、以指定后缀结尾的最短独立直链，并自动过滤切片参数[cite: 2]。
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={(e) => handleFileUpload(e.target.files[0])}
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-1.5"
+                      >
+                        <span>📁 选择本地文档上传</span>
+                      </button>
+                      <button
+                        onClick={() => handleParseText(rawInputText)}
+                        className="px-4 py-2 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 transition-all"
+                      >
+                        开始解析提取
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
+                    }}
+                    className={`mt-4 p-4 rounded-2xl border-2 border-dashed transition-all ${
+                      isDragging ? 'border-purple-500 bg-purple-500/10' : 'border-slate-800 bg-slate-950/60'
+                    }`}
+                  >
+                    <textarea
+                      rows={3}
+                      value={rawInputText}
+                      onChange={(e) => setRawInputText(e.target.value)}
+                      placeholder="可以直接将包含网址的文档内容、乱码抓包文本粘贴到此处，或将文件拖拽到此区域..."
+                      className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 focus:outline-none resize-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                {extractedItems.length > 0 && (
+                  <div className="glass-panel rounded-3xl p-6 border border-slate-800">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-base font-bold text-white">
+                          已提取最短网址 ({extractedItems.length} 个)
+                        </h3>
+                        <span className="text-xs text-slate-400">
+                          当前筛选: <span className="text-purple-300 font-semibold">{filteredExtractedItems.length}</span> 个
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          已勾选: <span className="text-emerald-400 font-semibold">{extractedItems.filter(i => i.checked).length}</span> 个
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => toggleFilteredExtracted(true)}
+                          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                        >
+                          全选当前筛选
+                        </button>
+                        <button
+                          onClick={() => toggleFilteredExtracted(false)}
+                          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                        >
+                          取消勾选当前
+                        </button>
+                        <button
+                          onClick={handleImportSelected}
+                          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-700/30 transition-all flex items-center gap-1.5"
+                        >
+                          <span>📥 将已勾选网址加入原网址库</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 筛选工具栏 */}
+                    <div className="p-3.5 my-4 bg-slate-900/70 border border-slate-800/80 rounded-2xl flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-slate-400 font-medium mr-1">格式筛选:</span>
+                        <button
+                          onClick={() => setExtractFilterFormat('ALL')}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                            extractFilterFormat === 'ALL' ? 'bg-purple-600 text-white font-semibold' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          全部 ({extractedItems.length})
+                        </button>
+                        <button
+                          onClick={() => setExtractFilterFormat('WEBM')}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                            extractFilterFormat === 'WEBM' ? 'bg-cyan-600 text-white font-semibold' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🎬 WebM 动效 ({extractedItems.filter(i => i.format === 'WEBM').length})
+                        </button>
+                        <button
+                          onClick={() => setExtractFilterFormat('WEBP')}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                            extractFilterFormat === 'WEBP' ? 'bg-pink-600 text-white font-semibold' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🖼️ WebP 插画 ({extractedItems.filter(i => i.format === 'WEBP').length})
+                        </button>
+                        <button
+                          onClick={() => setExtractFilterFormat('PNG')}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                            extractFilterFormat === 'PNG' ? 'bg-emerald-600 text-white font-semibold' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          🎨 PNG 图片 ({extractedItems.filter(i => i.format === 'PNG').length})
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <select
+                          value={extractCheckFilter}
+                          onChange={(e) => setExtractCheckFilter(e.target.value)}
+                          className="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="ALL">全部状态</option>
+                          <option value="CHECKED">仅看已勾选</option>
+                          <option value="UNCHECKED">仅看未勾选</option>
+                        </select>
+
+                        <div className="relative w-44 sm:w-56">
+                          <input
+                            type="text"
+                            placeholder="在提取结果中搜索..."
+                            value={extractSearchQuery}
+                            onChange={(e) => setExtractSearchQuery(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 text-slate-200 placeholder-slate-500 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-purple-500"
+                          />
+                          {extractSearchQuery && (
+                            <button
+                              onClick={() => setExtractSearchQuery('')}
+                              className="absolute right-2 top-1.5 text-slate-400 hover:text-white text-xs"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {filteredExtractedItems.length === 0 ? (
+                      <div className="p-8 text-center my-4 border border-dashed border-slate-800 rounded-2xl">
+                        <p className="text-sm text-slate-400">没有找到匹配当前筛选条件的提取网址</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+                        {filteredExtractedItems.map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => toggleExtractedCheck(item.id)}
+                            className={`group relative glass-panel rounded-xl overflow-hidden border cursor-pointer transition-all ${
+                              item.checked ? 'border-purple-500 ring-2 ring-purple-500/20 bg-slate-900/90' : 'border-slate-800/80 opacity-60'
+                            }`}
+                          >
+                            <div className="absolute top-2.5 left-2.5 z-20 w-5 h-5 rounded-md bg-slate-950/80 border border-slate-700 flex items-center justify-center">
+                              {item.checked && <span className="text-purple-400 font-bold text-xs">✓</span>}
+                            </div>
+
+                            <div className="absolute top-2.5 right-2.5 z-20">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                item.format === 'WEBM' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
+                                item.format === 'WEBP' ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30' :
+                                'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              }`}>
+                                {item.format}
+                              </span>
+                            </div>
+
+                            <div className="w-full h-36 bg-slate-950 overflow-hidden flex items-center justify-center">
+                              <MediaRenderer
+                                url={item.url}
+                                type={item.type}
+                                title={item.title}
+                                className="transition-transform group-hover:scale-105"
+                              />
+                            </div>
+
+                            <div className="p-3" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => {
+                                  const newTitle = e.target.value;
+                                  setExtractedItems(extractedItems.map(i => i.id === item.id ? { ...i, title: newTitle } : i));
+                                }}
+                                className="w-full bg-slate-950/80 border border-slate-800 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500 font-medium"
+                                placeholder="自定义标题..."
+                              />
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">
+                                <span className="text-[10px] text-slate-500 font-mono truncate max-w-[130px]" title={item.url}>
+                                  {item.url}
+                                </span>
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[10px] text-indigo-400 hover:underline"
+                                >
+                                  打开 ↗
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===================== 板块二：原有画廊库板块 ===================== */}
+            {activeTab === 'gallery' && (
+              <div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 my-6">
+                  <div className="glass-panel rounded-2xl p-4 flex flex-col justify-between">
+                    <span className="text-xs text-slate-400 font-medium">总收录网址</span>
+                    <span className="text-2xl font-bold text-white mt-1.5">{items.length} 个</span>
+                  </div>
+                  <div className="glass-panel rounded-2xl p-4 flex flex-col justify-between">
+                    <span className="text-xs text-slate-400 font-medium">动态视频 (WebM)</span>
+                    <span className="text-2xl font-bold text-cyan-400 mt-1.5">
+                      {items.filter(i => i.type === 'WEBM').length}
+                    </span>
+                  </div>
+                  <div className="glass-panel rounded-2xl p-4 flex flex-col justify-between">
+                    <span className="text-xs text-slate-400 font-medium">静态图片 (IMG)</span>
+                    <span className="text-2xl font-bold text-indigo-400 mt-1.5">
+                      {items.filter(i => i.type === 'IMG').length}
+                    </span>
+                  </div>
+                  <div className="glass-panel rounded-2xl p-4 flex flex-col justify-between">
+                    <span className="text-xs text-slate-400 font-medium">可撤销历史步数</span>
+                    <span className="text-2xl font-bold text-amber-400 mt-1.5">
+                      {historyStack.length} 步
+                    </span>
+                  </div>
+                </div>
+
+                {/* 搜索与分类导航 */}
+                <div className="glass-panel rounded-2xl p-4 mb-8 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setActiveCategory('ALL')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        activeCategory === 'ALL' ? 'bg-white text-slate-900 shadow font-semibold' : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      全部 ({items.length})
+                    </button>
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          activeCategory === cat ? 'bg-indigo-600 text-white shadow font-semibold' : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {cat} ({items.filter(i => i.category === cat).length})
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex-1 sm:w-60">
+                      <input
+                        type="text"
+                        placeholder="按标题或网址搜索..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900/90 border border-slate-700/80 text-slate-200 placeholder-slate-500 text-xs rounded-xl px-3.5 py-2 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium border ${
+                        isMultiSelectMode ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200' : 'bg-slate-900 border-slate-800 text-slate-300'
+                      }`}
+                    >
+                      {isMultiSelectMode ? '✓ 多选中' : '多选'}
+                    </button>
+
+                    <button
+                      onClick={handleBatchOpen}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 flex items-center gap-1"
+                    >
+                      <span>⚡</span>
+                      <span>批量打开</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 卡片展示画廊 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {filteredItems.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => setActivePreviewItem(item)}
+                      className="group relative glass-panel rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl border border-slate-800/80"
+                    >
+                      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+                        {item.isPinned && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/30 backdrop-blur-md">
+                            PIN
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-md ${
+                          item.type === 'WEBM' ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40' : 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/40'
+                        }`}>
+                          {item.type}
+                        </span>
+                      </div>
+
+                      <div className="relative w-full h-48 bg-slate-950 overflow-hidden flex items-center justify-center">
+                        <MediaRenderer
+                          url={item.url}
+                          previewUrl={item.previewUrl}
+                          type={item.type}
+                          title={item.title}
+                          className="transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </div>
+
+                      <div className="p-4 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-indigo-400">{item.category}</span>
+                            <span className="text-[11px] text-slate-500">{item.createdAt}</span>
+                          </div>
+                          <h4 className="text-base font-bold text-slate-100 mt-1 line-clamp-1 group-hover:text-indigo-300">
+                            {item.title}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-1">{item.description}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/80">
+                          <button
+                            onClick={(e) => handleDownloadAsset(item, e)}
+                            className="text-[11px] px-2 py-1 rounded bg-slate-800/80 text-cyan-300 hover:bg-cyan-600/40 border border-cyan-500/20"
+                            title="下载保存到本地"
+                          >
+                            ⬇ 下载
+                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => copyUrl(item, e)}
+                              className="text-[11px] px-2 py-1 rounded bg-slate-800/80 text-slate-300 hover:text-white"
+                            >
+                              {copiedId === item.id ? '已复制' : '复制'}
+                            </button>
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[11px] px-2.5 py-1 rounded bg-indigo-600/30 text-indigo-200 hover:bg-indigo-600 hover:text-white"
+                            >
+                              打开 ↗
+                            </a>
+                            <button
+                              onClick={(e) => handleDeleteItem(item.id, item.title, e)}
+                              className="text-xs p-1 text-slate-500 hover:text-red-400 transition-colors"
+                              title="删除卡片 (可随时按 Ctrl+Z 撤销恢复)"
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 手动添加新网址弹窗 Modal */}
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <div className="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-7 border border-slate-700 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>✨</span> 手动添加新的图片 / 动图网址
+                  </h3>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="text-slate-400 hover:text-white text-base"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveManualNew} className="mt-5 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        图片/动图直链 或 目标网址 (URL) <span className="text-pink-500">*</span>
+                      </label>
+                      {formData.url && (
+                        <a
+                          href={formData.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-indigo-400 hover:underline"
+                        >
+                          测试访问 ↗
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://... (.webm, .webp, .png, .gif, .jpg 或任意网址)"
+                      value={formData.url}
+                      onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      独立封面图链接 <span className="text-slate-500 text-[11px]">(选填：若上方为普通网页，可在此贴图片直链)</span>
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="选填：https://... 封面图片直链"
+                      value={formData.previewUrl}
+                      onChange={(e) => setFormData({ ...formData, previewUrl: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {(formData.url || formData.previewUrl) && (
+                    <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 flex items-center justify-center border border-slate-800">
+                        <MediaRenderer
+                          url={formData.url}
+                          previewUrl={formData.previewUrl}
+                          type={formData.type === 'AUTO' ? detectMediaType(formData.previewUrl || formData.url) : formData.type}
+                          title={formData.title || '静态预览'}
+                        />
+                      </div>
+                      <div className="text-xs text-slate-400 min-w-0">
+                        <p className="text-slate-200 font-medium truncate">
+                          {formData.title || '正在预览中...'}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          自动识别类型：{detectMediaType(formData.previewUrl || formData.url)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">标题 / 资源名称</label>
+                    <input
+                      type="text"
+                      placeholder="例：薇斯纳 / 视觉设计"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">所属分类</label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                      >
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">展示格式</label>
+                      <select
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="AUTO">智能自动推断</option>
+                        <option value="WEBM">WebM 动态视频</option>
+                        <option value="IMG">静态图片 / WebP / PNG</option>
+                        <option value="GIF">GIF 动图</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">备注说明</label>
+                    <textarea
+                      rows={2}
+                      placeholder="记录该网址的特点或灵感用途..."
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="manual-pin-chk"
+                      checked={formData.isPinned}
+                      onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
+                      className="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="manual-pin-chk" className="text-xs text-slate-300 cursor-pointer">
+                      在画廊库中置顶展示此网址
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30"
+                    >
+                      确认添加
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* 全屏高清预览 Lightbox */}
+          {activePreviewItem && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-md"
+              onClick={() => setActivePreviewItem(null)}
+            >
+              <div
+                className="relative max-w-4xl w-full glass-panel rounded-3xl overflow-hidden border border-slate-700/80 flex flex-col max-h-[92vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-4 flex items-center justify-between border-b border-slate-800 bg-slate-900/60">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600/30 text-indigo-300">
+                      {activePreviewItem.type}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-200">{activePreviewItem.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handleDownloadAsset(activePreviewItem, e)}
+                      className="px-3 py-1 bg-cyan-600 text-white rounded-lg text-xs hover:bg-cyan-500 font-medium"
+                    >
+                      ⬇ 下载保存
+                    </button>
+                    <button
+                      onClick={() => setActivePreviewItem(null)}
+                      className="text-slate-400 hover:text-white text-base p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 overflow-hidden min-h-[350px]">
+                  <MediaRenderer
+                    url={activePreviewItem.url}
+                    previewUrl={activePreviewItem.previewUrl}
+                    type={activePreviewItem.type}
+                    title={activePreviewItem.title}
+                    className="max-h-[65vh] max-w-full object-contain rounded-xl shadow-2xl"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
